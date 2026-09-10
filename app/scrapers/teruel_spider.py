@@ -1,27 +1,69 @@
 import cloudscraper
 from bs4 import BeautifulSoup
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
+# Lista de URLs de rastreo directo (Casas, Pisos, Oportunidades, Reformas y Costa)
+URLS = [
+    # Provincia de Teruel y Comarca Gúdar-Javalambre
+    "https://www.pisos.com/venta/pisos-mora_de_rubielos/",
+    "https://www.pisos.com/venta/casas-mora_de_rubielos/",
+    "https://www.pisos.com/venta/pisos-sarrion/",
+    "https://www.pisos.com/venta/casas-sarrion/",
+    "https://www.pisos.com/venta/pisos-rubielos_de_mora/",
+    "https://www.pisos.com/venta/casas-rubielos_de_mora/",
+    "https://www.pisos.com/venta/pisos-teruel/",
+    "https://www.pisos.com/venta/casas-teruel/",
+    
+    # Costa y Provincia de la Comunidad Valenciana
+    "https://www.pisos.com/venta/viviendas-valencia/",
+    "https://www.pisos.com/venta/viviendas-alicante/",
+    "https://www.pisos.com/venta/viviendas-castellon/",
+    "https://www.pisos.com/venta/viviendas-gandia/",
+    "https://www.pisos.com/venta/viviendas-denia/"
+]
+
+def fetch_url(url, scraper):
+    results = []
+    try:
+        res = scraper.get(url, timeout=5)
+        if res.status_code == 200:
+            soup = BeautifulSoup(res.text, "html.parser")
+            tarjetas = soup.find_all("div", class_="ad-preview") or soup.find_all("div", class_="grid-row") or soup.find_all("article")
+            
+            for t in tarjetas[:5]:
+                # Filtrar ÚNICAMENTE enlaces directos a la ficha individual de la casa (/comprar/)
+                link_elem = t.find("a", href=lambda h: h and "/comprar/" in h)
+                precio_elem = t.find("div", class_="price") or t.find("span", class_="price") or t.find("p", class_="price")
+                
+                if link_elem:
+                    href = link_elem.get("href", "").strip()
+                    full_url = "https://www.pisos.com" + href if href.startswith("/") else href
+                    
+                    # Garantizar que es una ficha individual con fotos y contacto
+                    if "/comprar/" in full_url:
+                        titulo_texto = link_elem.text.strip() or "Vivienda en venta"
+                        precio_texto = precio_elem.text.strip() if precio_elem else "Consultar"
+                        
+                        lower_title = titulo_texto.lower()
+                        if any(k in lower_title for k in ["reformar", "ruina", "pajar", "proyecto"]):
+                            icono = "🛠️ [REFORMA]"
+                        elif any(k in lower_title for k in ["casa", "chalet", "finca", "masía", "terreno"]):
+                            icono = "🏡 [CASA/CHALET]"
+                        elif any(k in lower_title for k in ["ático", "duplex", "estudio", "apartamento"]):
+                            icono = "🏢 [PISO/ÁTICO]"
+                        else:
+                            icono = "🏠 [INMUEBLE]"
+
+                        results.append({
+                            "titulo": f"{icono} {titulo_texto}",
+                            "precio": precio_texto,
+                            "enlace": full_url
+                        })
+    except Exception as e:
+        print(f"Error extrayendo {url}: {e}")
+    return results
 
 def scrape_teruel():
-    # URLs que abarcan Pisos, Casas, Chalets, Oportunidades a reformar y Chollos
-    urls = [
-        # Teruel y Comarca Gúdar-Javalambre (Casas, Pajares, Reformas y Pisos)
-        "https://www.pisos.com/venta/pisos-mora_de_rubielos/",
-        "https://www.pisos.com/venta/casas-mora_de_rubielos/",
-        "https://www.pisos.com/venta/pisos-sarrion/",
-        "https://www.pisos.com/venta/casas-sarrion/",
-        "https://www.pisos.com/venta/pisos-rubielos_de_mora/",
-        "https://www.pisos.com/venta/casas-rubielos_de_mora/",
-        "https://www.pisos.com/venta/pisos-teruel/",
-        "https://www.pisos.com/venta/casas-teruel/",
-        
-        # Comunidad Valenciana (Costa, Capitales y Oportunidades)
-        "https://www.pisos.com/venta/viviendas-valencia/",
-        "https://www.pisos.com/venta/viviendas-alicante/",
-        "https://www.pisos.com/venta/viviendas-castellon/",
-        "https://www.pisos.com/venta/viviendas-gandia/",
-        "https://www.pisos.com/venta/viviendas-denia/"
-    ]
-    
     scraper = cloudscraper.create_scraper(
         browser={
             'browser': 'chrome',
@@ -32,62 +74,33 @@ def scrape_teruel():
     
     pisos_encontrados = []
     
-    for url in urls:
-        try:
-            res = scraper.get(url, timeout=8)
-            if res.status_code == 200:
-                soup = BeautifulSoup(res.text, "html.parser")
-                
-                # Localizar tarjetas de anuncios
-                tarjetas = soup.find_all("div", class_="ad-preview") or soup.find_all("div", class_="grid-row") or soup.find_all("article")
-                
-                for t in tarjetas:
-                    # Obtener enlace directo a la casa (/comprar/...)
-                    link_elem = t.find("a", href=lambda h: h and "/comprar/" in h) or t.find("a", class_="title") or t.find("a", class_="p-title")
-                    precio_elem = t.find("div", class_="price") or t.find("span", class_="price") or t.find("p", class_="price")
-                    
-                    if link_elem and link_elem.get("href"):
-                        href = link_elem.get("href", "").strip()
-                        full_url = "https://www.pisos.com" + href if href.startswith("/") else href
-                        
-                        if "/comprar/" in full_url:
-                            titulo_texto = link_elem.text.strip() or "Inmueble en venta"
-                            precio_texto = precio_elem.text.strip() if precio_elem else "Consultar"
-                            
-                            # Etiquetar según el tipo de inmueble para identificar fácil
-                            lower_title = titulo_texto.lower()
-                            if "reformar" in lower_title or "ruina" in lower_title or "pajar" in lower_title or "proyecto" in lower_title:
-                                icono = "🛠️"
-                            elif "casa" in lower_title or "chalet" in lower_title or "finca" in lower_title or "masía" in lower_title:
-                                icono = "🏡"
-                            elif "ático" in lower_title or "duplex" in lower_title or "estudio" in lower_title:
-                                icono = "🏢"
-                            else:
-                                icono = "🏠"
+    # Extracción simultánea en paralelo para respuesta ultrarrápida (Modo Dios)
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        futures = [executor.submit(fetch_url, url, scraper) for url in URLS]
+        for future in as_completed(futures):
+            try:
+                data = future.result()
+                if data:
+                    for item in data:
+                        # Evitar duplicados comparando la URL directa de la casa
+                        if not any(x["enlace"] == item["enlace"] for x in pisos_encontrados):
+                            pisos_encontrados.append(item)
+            except Exception as e:
+                print(f"Error procesando hilo: {e}")
 
-                            # Evitar duplicados
-                            if not any(p["enlace"] == full_url for p in pisos_encontrados):
-                                pisos_encontrados.append({
-                                    "titulo": f"{icono} {titulo_texto}",
-                                    "precio": precio_texto,
-                                    "enlace": full_url
-                                })
-        except Exception as e:
-            print(f"Aviso escaneando {url}: {e}")
-
-    # Enlaces oficiales a Subastas Públicas del BOE
+    # Enlaces oficiales limpios al Portal del BOE (Subastas Públicas)
     subastas_boe = [
-        {"titulo": "⚖️ [SUBASTA BOE] Oportunidades y lotes en Teruel", "precio": "Ver subastas activas", "enlace": "https://subastas.boe.es/subastas_ava.php?accion=Busqueda&id_prov=44"},
-        {"titulo": "⚖️ [SUBASTA BOE] Oportunidades y lotes en Valencia", "precio": "Ver subastas activas", "enlace": "https://subastas.boe.es/subastas_ava.php?accion=Busqueda&id_prov=46"},
-        {"titulo": "⚖️ [SUBASTA BOE] Oportunidades y lotes en Alicante", "precio": "Ver subastas activas", "enlace": "https://subastas.boe.es/subastas_ava.php?accion=Busqueda&id_prov=3"}
+        {
+            "titulo": "⚖️ [SUBASTAS BOE] Portal Oficial de Subastas Inmobiliarias y Judiciales",
+            "precio": "Ver pujas activas",
+            "enlace": "https://subastas.boe.es/index.php?c=1"
+        },
+        {
+            "titulo": "⚖️ [SUBASTAS BOE] Buscador de Bienes Inmuebles por Provincia (Teruel / C. Valenciana)",
+            "precio": "Consultar Expedientes",
+            "enlace": "https://subastas.boe.es/subastas_ava.php"
+        }
     ]
-
-    if not pisos_encontrados:
-        pisos_encontrados.append({
-            "titulo": "⚠️ Servidor temporalmente en espera",
-            "precio": "Reintentar en unos segundos",
-            "enlace": "https://www.pisos.com/venta/pisos-mora_de_rubielos/"
-        })
 
     pisos_encontrados.extend(subastas_boe)
     return pisos_encontrados
