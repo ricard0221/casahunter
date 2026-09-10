@@ -189,6 +189,7 @@ def actualizar():
         </html>
         """
     except Exception as e:
+        
         return f"Error crítico durante la actualización: {e}"
 
 if __name__ == "__main__":
