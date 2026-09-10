@@ -2,7 +2,7 @@ import requests
 from bs4 import BeautifulSoup
 
 def scrape_teruel():
-    # Lista de zonas: Teruel + Comunidad Valenciana (Valencia, Alicante, Castellón)
+    # Zonas de búsqueda: Teruel + Comunidad Valenciana
     urls = [
         "https://www.pisos.com/venta/pisos-teruel/",
         "https://www.pisos.com/venta/pisos-valencia/",
@@ -21,10 +21,8 @@ def scrape_teruel():
             response = requests.get(url, headers=headers, timeout=10)
             if response.status_code == 200:
                 soup = BeautifulSoup(response.text, "html.parser")
-                # Busca las tarjetas de anuncios
                 tarjetas = soup.find_all("div", class_="ad-preview")
 
-                # Extrae los primeros 5 de cada provincia para mantener la app rápida
                 for tarjeta in tarjetas[:5]:
                     titulo_elem = tarjeta.find("a", class_="title")
                     precio_elem = tarjeta.find("div", class_="price")
@@ -44,3 +42,15 @@ def scrape_teruel():
             print(f"Error extrayendo de {url}: {e}")
 
     return pisos_encontrados
+
+# Compatibilidad para evitar cualquier error de importación
+class TeruelSmartScraper:
+    def __init__(self):
+        pass
+    
+    def run(self):
+        return scrape_teruel()
+    
+    @staticmethod
+    def scrape():
+        return scrape_teruel()
