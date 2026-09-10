@@ -1,5 +1,6 @@
-flask
+Flask
+gunicorn
 requests
 beautifulsoup4
+cloudscraper
 groq
-gunicorn
