@@ -4,12 +4,14 @@ import random
 
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
 ]
 
 def scrape_teruel():
+    # Zonas específicas solicitadas (Provincia de Teruel + Costa C. Valenciana)
     urls = [
+        "https://www.pisos.com/venta/pisos-mora_de_rubielos/",
+        "https://www.pisos.com/venta/pisos-sarrion/",
         "https://www.pisos.com/venta/pisos-teruel/",
         "https://www.pisos.com/venta/pisos-valencia/",
         "https://www.pisos.com/venta/pisos-alicante/",
@@ -21,25 +23,22 @@ def scrape_teruel():
     for url in urls:
         headers = {
             "User-Agent": random.choice(USER_AGENTS),
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Referer": "https://www.google.com/"
         }
         try:
-            res = requests.get(url, headers=headers, timeout=5)
+            res = requests.get(url, headers=headers, timeout=4)
             if res.status_code == 200:
                 soup = BeautifulSoup(res.text, "html.parser")
                 tarjetas = soup.find_all("div", class_="ad-preview") or soup.find_all("div", class_="grid-row")
                 
-                for t in tarjetas[:4]:
-                    # Buscar la etiqueta 'a' que contiene el título y el enlace exacto a la casa
+                for t in tarjetas[:3]:
                     titulo_elem = t.find("a", class_="title") or t.find("a", class_="p-title")
                     precio_elem = t.find("div", class_="price") or t.find("span", class_="price")
                     
                     if titulo_elem:
                         href = titulo_elem.get("href", "")
-                        # Garantizamos el enlace DIRECTO a la ficha individual con fotos
-                        if href.startswith("/"):
+                        if href and not href.startswith("http"):
                             link_directo = "https://www.pisos.com" + href
                         else:
                             link_directo = href
@@ -50,24 +49,26 @@ def scrape_teruel():
                             "enlace": link_directo
                         })
         except Exception as e:
-            print(f"Aviso en scraping de {url}: {e}")
+            print(f"Error procesando {url}: {e}")
 
-    # Subastas BOE directas por provincia
-    subastas_directas = [
-        {"titulo": "⚖️ [SUBASTA BOE DIRECTA] Inmuebles en Teruel (Mora/Sarrión)", "precio": "Ver lote oficial", "enlace": "https://subastas.boe.es/subastas_ava.php?accion=Busqueda&id_prov=44"},
-        {"titulo": "⚖️ [SUBASTA BOE DIRECTA] Inmuebles en Costa Valencia", "precio": "Ver lote oficial", "enlace": "https://subastas.boe.es/subastas_ava.php?accion=Busqueda&id_prov=46"}
+    # Enlaces oficiales del BOE para subastas
+    subastas_boe = [
+        {"titulo": "⚖️ [SUBASTA BOE] Subastas activas en la provincia de Teruel", "precio": "Ver portal BOE", "enlace": "https://subastas.boe.es/subastas_ava.php?accion=Busqueda&id_prov=44"},
+        {"titulo": "⚖️ [SUBASTA BOE] Subastas activas en la provincia de Valencia", "precio": "Ver portal BOE", "enlace": "https://subastas.boe.es/subastas_ava.php?accion=Busqueda&id_prov=46"},
+        {"titulo": "⚖️ [SUBASTA BOE] Subastas activas en la provincia de Alicante", "precio": "Ver portal BOE", "enlace": "https://subastas.boe.es/subastas_ava.php?accion=Busqueda&id_prov=3"}
     ]
 
-    # En caso de corte puntual, entregamos accesos directos a fichas individuales
+    # Enlaces de respaldo 100% funcionales (usan la ruta correcta /venta/pisos-...)
     if len(pisos_encontrados) < 3:
         pisos_encontrados = [
-            {"titulo": "🏠 Chalet con parcela y fotos en Mora de Rubielos (Teruel)", "precio": "128.000 €", "enlace": "https://www.pisos.com/comprar/casas-mora_de_rubielos/"},
-            {"titulo": "🏠 Casa rústica con patio en Sarrión (Teruel)", "precio": "89.500 €", "enlace": "https://www.pisos.com/comprar/casas-sarrion/"},
-            {"titulo": "🏠 Apartamento con terraza en Gandía Playa (Valencia)", "precio": "145.000 €", "enlace": "https://www.pisos.com/comprar/pisos-gandia/"},
-            {"titulo": "🏠 Ático vista mar en Dénia (Alicante)", "precio": "175.000 €", "enlace": "https://www.pisos.com/comprar/pisos-denia/"}
+            {"titulo": "🏠 Inmuebles en Mora de Rubielos (Teruel)", "precio": "Ver catálogo directo", "enlace": "https://www.pisos.com/venta/pisos-mora_de_rubielos/"},
+            {"titulo": "🏠 Inmuebles en Sarrión (Teruel)", "precio": "Ver catálogo directo", "enlace": "https://www.pisos.com/venta/pisos-sarrion/"},
+            {"titulo": "🏠 Apartamentos en Gandía Playa (Valencia)", "precio": "Ver catálogo directo", "enlace": "https://www.pisos.com/venta/pisos-gandia/"},
+            {"titulo": "🏠 Pisos cerca del mar en Dénia (Alicante)", "precio": "Ver catálogo directo", "enlace": "https://www.pisos.com/venta/pisos-denia/"},
+            {"titulo": "🏠 Casas y pisos en Peñíscola (Castellón)", "precio": "Ver catálogo directo", "enlace": "https://www.pisos.com/venta/pisos-peniscola/"}
         ]
 
-    pisos_encontrados.extend(subastas_directas)
+    pisos_encontrados.extend(subastas_boe)
     return pisos_encontrados
 
 class TeruelSmartScraper:
