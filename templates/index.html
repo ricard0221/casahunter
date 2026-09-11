@@ -61,7 +61,7 @@
             object-fit: cover;
             border-radius: 8px;
             margin-bottom: 15px;
-            background-color: #1e1e2f; /* Por si la imagen tarda en cargar */
+            background-color: #1e1e2f;
         }
         .titulo-piso {
             font-size: 1.2em;
@@ -93,20 +93,16 @@
 
     <h1>⚡ CasaHunter PRO (Teruel & C. Valenciana)</h1>
     
-    <!-- Botón para ejecutar el bot de Python -->
     <form method="POST">
         <button type="submit" class="btn-extraer">🚀 Extraer Pisos en Tiempo Real</button>
     </form>
 
-    <!-- Aquí se inyectan los resultados que Python manda a HTML -->
     {% if pisos %}
         <div class="badge">✅ {{ pisos|length }} Ofertas Encontradas en Tiempo Real</div>
         
         <div class="resultados">
             {% for piso in pisos %}
             <div class="tarjeta">
-                
-                <!-- FOTO DE LA CASA (Lo que pedía el cliente) -->
                 {% if piso.imagen %}
                     <img src="{{ piso.imagen }}" alt="Foto del inmueble">
                 {% endif %}
@@ -114,9 +110,8 @@
                 <h2 class="titulo-piso">{{ piso.titulo }}</h2>
                 <div class="precio">💰 {{ piso.precio }}</div>
                 
-                <!-- BOTÓN DE CONTACTO (Abre la web para ver el teléfono seguro) -->
-                <a href="{{ piso.enlace }}" class="btn-contacto" target="_blank">
-                    📞 Ver Teléfono y Galería Completa
+                <a href="/detalle?url={{ piso.enlace }}" class="btn-contacto">
+                    🔍 Ver Ficha y Galería Completa
                 </a>
             </div>
             {% endfor %}
