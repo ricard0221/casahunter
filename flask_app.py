@@ -2,6 +2,7 @@ from flask import Flask, render_template, request
 from app.scrapers.teruel_spider import TeruelSmartScraper
 import cloudscraper
 from bs4 import BeautifulSoup
+import re
 
 app = Flask(__name__)
 
@@ -31,6 +32,18 @@ def detalle():
         desc_elem = soup.find("div", class_="description") or soup.find("div", id="description")
         descripcion = desc_elem.text.strip() if desc_elem else "Descripción detallada disponible en el anuncio oficial."
         
+        # EXTRACTOR DE TELÉFONOS (Busca patrones de teléfonos españoles en todo el código HTML y descripción)
+        patron_telefono = r'(?:(?:\+|00)34\s?)?(?:[679]\d{2}[\s.-]?\d{3}[\s.-]?\d{3})'
+        coincidencias = re.findall(patron_telefono, res.text)
+        
+        # Limpiar y filtrar duplicados de números encontrados
+        telefonos = []
+        for t in coincidencias:
+            num_limpio = re.sub(r'\D', '', t)
+            if len(num_limpio) == 9 and num_limpio not in telefonos:
+                telefonos.append(num_limpio)
+
+        # Extraer imágenes de la propiedad
         imagenes = []
         for img in soup.find_all("img"):
             src = img.get("data-src") or img.get("src")
@@ -44,6 +57,7 @@ def detalle():
             precio=precio, 
             descripcion=descripcion, 
             imagenes=imagenes[:15], 
+            telefonos=telefonos,
             enlace_original=enlace
         )
     except Exception as e:
