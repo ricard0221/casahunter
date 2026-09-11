@@ -3,6 +3,7 @@ from app.scrapers.teruel_spider import TeruelSmartScraper
 import cloudscraper
 from bs4 import BeautifulSoup
 import re
+import json
 
 app = Flask(__name__)
 
@@ -30,20 +31,38 @@ def detalle():
         precio = precio_elem.text.strip() if precio_elem else "Consultar"
         
         desc_elem = soup.find("div", class_="description") or soup.find("div", id="description")
-        descripcion = desc_elem.text.strip() if desc_elem else "Descripción detallada disponible en el anuncio oficial."
+        descripcion_texto = desc_elem.text.strip() if desc_elem else ""
         
-        # EXTRACTOR DE TELÉFONOS (Busca patrones de teléfonos españoles en todo el código HTML y descripción)
-        patron_telefono = r'(?:(?:\+|00)34\s?)?(?:[679]\d{2}[\s.-]?\d{3}[\s.-]?\d{3})'
-        coincidencias = re.findall(patron_telefono, res.text)
-        
-        # Limpiar y filtrar duplicados de números encontrados
         telefonos = []
-        for t in coincidencias:
-            num_limpio = re.sub(r'\D', '', t)
-            if len(num_limpio) == 9 and num_limpio not in telefonos:
-                telefonos.append(num_limpio)
 
-        # Extraer imágenes de la propiedad
+        # 1. Búsqueda directa en la ficha técnica de la inmobiliaria/agente (JSON-LD)
+        for script in soup.find_all("script", type="application/ld+json"):
+            if script.string and "telephone" in script.string:
+                try:
+                    data = json.loads(script.string)
+                    # Extraer teléfono si está registrado en los metadatos
+                    if isinstance(data, dict):
+                        tel_raw = data.get("telephone") or data.get("offers", {}).get("offeredBy", {}).get("telephone")
+                        if tel_raw:
+                            num = re.sub(r'\D', '', str(tel_raw))
+                            if len(num) >= 9 and num[-9:] not in telefonos:
+                                telefonos.append(num[-9:])
+                except Exception:
+                    pass
+
+        # 2. Si no está en la ficha técnica, buscar SOLO en el texto redactado de la descripción
+        if not telefonos and descripcion_texto:
+            patron_telefono = r'(?:(?:\+|00)34\s?)?(?:[679]\d{2}[\s.-]?\d{3}[\s.-]?\d{3})'
+            coincidencias = re.findall(patron_telefono, descripcion_texto)
+            for t in coincidencias:
+                num_limpio = re.sub(r'\D', '', t)
+                if len(num_limpio) == 9 and num_limpio not in telefonos:
+                    telefonos.append(num_limpio)
+
+        # Limitar a máximo 1 o 2 números reales para no saturar la pantalla
+        telefonos = telefonos[:2]
+
+        # Extraer imágenes del inmueble
         imagenes = []
         for img in soup.find_all("img"):
             src = img.get("data-src") or img.get("src")
@@ -55,7 +74,7 @@ def detalle():
             "detalle.html", 
             titulo=titulo, 
             precio=precio, 
-            descripcion=descripcion, 
+            descripcion=descripcion_texto if descripcion_texto else "Descripción disponible en el portal oficial.", 
             imagenes=imagenes[:15], 
             telefonos=telefonos,
             enlace_original=enlace
