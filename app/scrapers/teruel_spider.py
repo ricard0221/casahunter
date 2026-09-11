@@ -2,7 +2,6 @@ import cloudscraper
 from bs4 import BeautifulSoup
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-# Añadimos las URLs de EMBARGOS DE BANCOS junto con las normales
 URLS = [
     # 🏦 EMBARGOS Y PISOS DE BANCOS
     "https://www.pisos.com/venta/pisos-bancos-teruel/",
@@ -15,11 +14,15 @@ URLS = [
     "https://www.pisos.com/venta/casas-mora_de_rubielos/",
     "https://www.pisos.com/venta/pisos-sarrion/",
     "https://www.pisos.com/venta/casas-sarrion/",
+    "https://www.pisos.com/venta/pisos-rubielos_de_mora/",
+    "https://www.pisos.com/venta/casas-rubielos_de_mora/",
     "https://www.pisos.com/venta/pisos-teruel/",
+    "https://www.pisos.com/venta/casas-teruel/",
     
-    # Costa y Provincia de la Comunidad Valenciana
+    # Costa y Comunidad Valenciana
     "https://www.pisos.com/venta/viviendas-valencia/",
     "https://www.pisos.com/venta/viviendas-alicante/",
+    "https://www.pisos.com/venta/viviendas-castellon/",
     "https://www.pisos.com/venta/viviendas-gandia/",
     "https://www.pisos.com/venta/viviendas-denia/"
 ]
@@ -36,11 +39,9 @@ def fetch_url(url, scraper):
                 link_elem = t.find("a", href=lambda h: h and "/comprar/" in h)
                 precio_elem = t.find("div", class_="price") or t.find("span", class_="price") or t.find("p", class_="price")
                 
-                # Extraer la IMAGEN de la casa para mostrarla en tu app
                 img_elem = t.find("img")
                 imagen_url = ""
                 if img_elem:
-                    # Pisos.com suele usar data-src para cargar las imágenes (lazy loading)
                     imagen_url = img_elem.get("data-src") or img_elem.get("src") or ""
                 
                 if link_elem:
@@ -52,21 +53,22 @@ def fetch_url(url, scraper):
                         precio_texto = precio_elem.text.strip() if precio_elem else "Consultar"
                         
                         lower_title = titulo_texto.lower()
-                        # Si viene de la URL de bancos, le ponemos el icono de embargo
                         if "bancos" in url:
                             icono = "🏦 [EMBARGO/BANCO]"
                         elif any(k in lower_title for k in ["reformar", "ruina", "pajar"]):
                             icono = "🛠️ [REFORMA]"
-                        elif any(k in lower_title for k in ["casa", "chalet", "finca"]):
-                            icono = "🏡 [CASA]"
+                        elif any(k in lower_title for k in ["casa", "chalet", "finca", "masía"]):
+                            icono = "🏡 [CASA/CHALET]"
+                        elif any(k in lower_title for k in ["ático", "duplex", "estudio"]):
+                            icono = "🏢 [PISO/ÁTICO]"
                         else:
-                            icono = "🏠 [PISO]"
+                            icono = "🏠 [INMUEBLE]"
 
                         results.append({
                             "titulo": f"{icono} {titulo_texto}",
                             "precio": precio_texto,
                             "enlace": full_url,
-                            "imagen": imagen_url  # Pasamos la imagen a la web
+                            "imagen": imagen_url
                         })
     except Exception as e:
         print(f"Error extrayendo {url}: {e}")
@@ -92,13 +94,21 @@ def scrape_teruel():
                 pass
 
     subastas_boe = [
-        {"titulo": "⚖️ [SUBASTAS JUDICIALES] Ver pujas oficiales en Teruel y C.Valenciana", "precio": "Consultar Expedientes", "enlace": "https://subastas.boe.es/index.php?c=1", "imagen": "https://s03.s3c.es/imag/_v0/770x420/5/2/2/boe-logo-770.jpg"}
+        {
+            "titulo": "⚖️ [SUBASTAS BOE] Portal Oficial de Subastas Inmobiliarias y Judiciales",
+            "precio": "Ver pujas activas",
+            "enlace": "https://subastas.boe.es/index.php?c=1",
+            "imagen": "https://s03.s3c.es/imag/_v0/770x420/5/2/2/boe-logo-770.jpg"
+        }
     ]
 
     pisos_encontrados.extend(subastas_boe)
     return pisos_encontrados
 
 class TeruelSmartScraper:
-    def run(self): return scrape_teruel()
+    def run(self):
+        return scrape_teruel()
+        
     @staticmethod
-    def scrape(): return scrape_teruel()
+    def scrape():
+        return scrape_teruel()
