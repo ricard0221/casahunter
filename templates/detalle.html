@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -10,11 +9,37 @@
         .contenedor { max-width: 800px; margin: 0 auto; background-color: #2a2a40; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
         h1 { color: #00d2ff; font-size: 1.8em; }
         .precio { font-size: 2em; color: #00e676; font-weight: bold; margin-bottom: 20px; }
+        
+        /* CAJA DESTACADA DE TELÉFONO */
+        .caja-telefono {
+            background-color: #1b5e20;
+            border: 2px solid #00e676;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+        .numero-destacado {
+            font-size: 1.8em;
+            font-weight: bold;
+            color: #ffffff;
+            margin-top: 10px;
+        }
+        .btn-llamar-directo {
+            display: inline-block;
+            background-color: #00e676;
+            color: #1e1e2f;
+            padding: 12px 25px;
+            text-decoration: none;
+            font-weight: bold;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+
         .galeria { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 25px; }
         .galeria img { width: 100%; height: 200px; object-fit: cover; border-radius: 8px; border: 2px solid #39395f; }
         .descripcion { background: #1e1e2f; padding: 20px; border-radius: 8px; line-height: 1.6; margin-bottom: 30px; white-space: pre-line; }
-        .btn-llamar { display: block; background-color: #007bff; color: white; padding: 18px; text-decoration: none; border-radius: 8px; font-weight: bold; text-align: center; font-size: 1.2em; transition: 0.3s; }
-        .btn-llamar:hover { background-color: #0056b3; }
+        .btn-oficial { display: block; background-color: #39395f; color: #b0b0d0; padding: 15px; text-decoration: none; border-radius: 8px; text-align: center; font-size: 0.9em; }
         .btn-volver { display: inline-block; color: #b0b0d0; text-decoration: none; margin-bottom: 20px; font-weight: bold; }
     </style>
 </head>
@@ -25,6 +50,22 @@
         <h1>{{ titulo }}</h1>
         <div class="precio">💰 {{ precio }}</div>
         
+        <!-- SECCIÓN DE TELÉFONO EXTRAÍDO DIRECTAMENTE -->
+        {% if telefonos %}
+            <div class="caja-telefono">
+                📱 <strong>Teléfono de Contacto Detectado:</strong>
+                {% for tel in telefonos %}
+                    <div class="numero-destacado">📞 {{ tel }}</div>
+                    <a href="tel:{{ tel }}" class="btn-llamar-directo">Llamar Ahora</a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="caja-telefono" style="background-color: #3e2723; border-color: #ff9800;">
+                ⚠️ <strong>Teléfono Oculto por el Portal:</strong>
+                <p style="margin: 5px 0 0 0; font-size: 0.9em;">El anunciante no incluyó su número en el texto público. Puedes solicitarlo desde el enlace oficial abajo.</p>
+            </div>
+        {% endif %}
+
         <div class="galeria">
             {% for img in imagenes %}
                 <img src="{{ img }}" alt="Foto de la propiedad">
@@ -36,8 +77,8 @@
             {{ descripcion }}
         </div>
         
-        <a href="{{ enlace_original }}" class="btn-llamar" target="_blank">
-            📞 Contactar / Ver Teléfono del Anunciante
+        <a href="{{ enlace_original }}" class="btn-oficial" target="_blank">
+            🔗 Abrir Anuncio Original en Portal Externo
         </a>
     </div>
 </body>
